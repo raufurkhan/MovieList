@@ -10,9 +10,36 @@ function App() {
   const [isLoading,setLoading]=useState(false)
   const[error,setError]=useState(null)
 
-  function addMovieHandler(movie){
-    console.log(movie);
+  async function addMovieHandler(movie) {
+    const res = await fetch('https://react-api99-default-rtdb.firebaseio.com/movies.json', {
+      method: 'POST',
+      body: JSON.stringify(movie),
+      headers: {
+        //it is not required bvut good practice to aware your backend about data u r sending
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await res.json();
+    console.log(data);
   }
+
+  async function deleteMovieHandler(movieId) {
+    try {
+      const res = await fetch(`https://react-api99-default-rtdb.firebaseio.com/movies/${movieId}.json`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        throw new Error('Delete request failed.');
+      }
+
+      // Filter out the deleted movie from the local state
+      setMovies((prevMovies) => prevMovies.filter((movie) => movie.id !== movieId));
+    } catch (error) {
+      setError(error.message);
+    }
+  }
+
 
   const fetchMoviesHandler= useCallback( async ()=> {
     
@@ -20,21 +47,22 @@ function App() {
     setLoading(true)
     setError(null)
     try{
-      const res = await fetch('https://swapi.dev/api/films/')
+      const res = await fetch('https://react-api99-default-rtdb.firebaseio.com/movies.json');
       if(!res.ok){
         throw new Error("Something ent wrong")
       }
       const data = await res.json();
   
-      const transfromMovies = data.results.map(mData => {
-        return {
-          id: mData.episode_id,
-          title: mData.title,
-          openingText: mData.opening_crawl,
-          releaseDate: mData.release_Date
-        }
-      })
-      setMovies(transfromMovies);
+      const loadMovies = [];
+      for (const key in data) {
+        loadMovies.push({
+          id: key,
+          title: data[key].title,
+          openingText: data[key].openingText,
+          releaseDate: data[key].releaseDate
+        });
+      }
+      setMovies(loadMovies);
      
      
     }
@@ -53,7 +81,7 @@ function App() {
   let content = <p>Found no movies.</p>;
 
   if (movies.length > 0) {
-    content = <MoviesList movies={movies} />;
+    content = <MoviesList movies={movies} onDeleteMovie={deleteMovieHandler} />;
   }
 
   if (error) {
